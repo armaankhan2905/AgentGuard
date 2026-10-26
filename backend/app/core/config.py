@@ -39,8 +39,13 @@ class Settings:
     app_environment: str = "production"
     security_dev_endpoints: bool = False
     security_policy_file: str = "config/security_policies.json"
+    injection_policy_file: str = "config/injection_policy.json"
+    injection_ai_classifier_enabled: bool = False
+    injection_ai_timeout_seconds: float = 3.0
 
     def __post_init__(self) -> None:
+        if not 0 < self.injection_ai_timeout_seconds <= 10:
+            raise ValueError("INJECTION_AI_TIMEOUT_SECONDS must be between 0 and 10.")
         if self.app_environment not in {"local", "production", "test"}:
             raise ValueError("APP_ENVIRONMENT must be local, test, or production.")
         if not 0 < self.ai_timeout_seconds <= 120:
@@ -87,4 +92,7 @@ def get_settings() -> Settings:
         app_environment=os.getenv("APP_ENVIRONMENT", "production").strip(),
         security_dev_endpoints=os.getenv("SECURITY_DEV_ENDPOINTS", "false").strip().lower() == "true",
         security_policy_file=os.getenv("SECURITY_POLICY_FILE", "config/security_policies.json").strip(),
+        injection_policy_file=os.getenv("INJECTION_POLICY_FILE", "config/injection_policy.json").strip(),
+        injection_ai_classifier_enabled=os.getenv("INJECTION_AI_CLASSIFIER_ENABLED", "false").lower() == "true",
+        injection_ai_timeout_seconds=float(_number("INJECTION_AI_TIMEOUT_SECONDS", "3", float)),
     )

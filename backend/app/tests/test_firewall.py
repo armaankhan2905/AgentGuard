@@ -244,7 +244,7 @@ def test_every_registered_tool_audits_allow_and_honors_custom_deny(session_db, t
         read.assert_not_called()
         search.assert_not_called()
     assert denied.status == "rejected"
-    audits = db.scalars(select(SecurityEvent)).all()
+    audits = db.scalars(select(SecurityEvent).where(SecurityEvent.event_type == "firewall_decision_v1")).all()
     assert sorted(a.details["decision"] for a in audits) == ["ALLOW", "DENY"]
     assert db.scalar(select(func.count()).select_from(SimulatedEmail)) == (1 if name == "send_email" else 0)
 

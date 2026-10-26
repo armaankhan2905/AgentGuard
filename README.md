@@ -1,6 +1,6 @@
 # AgentGuard — AI Firewall for Autonomous AI Agents
 
-**Stage 3: deterministic security firewall.** Stage 1 health/status contracts, safe logging,
+**Stage 4: prompt-injection scanning.** Stage 1 health/status contracts, safe logging,
 and existing database records are preserved. Version remains `0.1.0` to preserve
 the Stage 1 API contract.
 
@@ -8,12 +8,20 @@ The agent uses a real configurable LLM API, persists conversations, and routes
 every tool call through `ToolGateway`. Its tools read approved fictional
 documents, search synthetic SQLite records, and save simulated emails. No real
 email delivery, arbitrary code/command execution, frontend, attack simulator,
-prompt-injection detector, or approval workflow is implemented.
+or approval workflow is implemented.
 
 Every tool request now passes through a default-deny firewall with server-owned
 policies and a committed security audit before execution. See
 [the Stage 3 guide](docs/stage3-security.md) for policy configuration, local
 monitoring, Swagger examples, verification, and limitations.
+
+Stage 4 adds bounded, heuristic scanning after authorized document/database reads
+and before persistence or model context. Critical content is quarantined;
+reliable original-text redaction preserves safe surrounding lines. See the
+[Stage 4 guide](docs/stage4-injection.md) for scoring, examples, optional classifier
+configuration, scan APIs, limitations, and the file inventory. The Stage 3 firewall
+remains the final authority for every tool call. No complete injection protection
+or calibrated detection accuracy is claimed.
 
 ## Windows PowerShell setup
 
@@ -196,16 +204,21 @@ allowed/denied decisions in `security_events` before dispatch, then execution
 outcomes in `tool_executions`. Strict Pydantic argument schemas
 forbid unknown fields, type coercion, duplicate JSON keys, and non-finite values.
 
-- `read_document(filename)`: only `project_report.txt`, `meeting_notes.txt`, or
-  `quarterly_summary.txt` in `backend/data/public/`. Traversal, absolute paths,
+- `read_document(filename)`: only catalogued public fixtures, including
+  `project_report.txt`, `meeting_notes.txt`, `quarterly_summary.txt`, and the seven
+  Stage 4 fixtures in `backend/data/public/`. Traversal, absolute paths,
   alternate streams, other filenames, symlinks/reparse points, and directory
   escapes are rejected. File identity is checked before reading; cap 6,000 bytes.
+  All successful reads are scanned before results reach the agent. A quarantined
+  document produces `status: quarantined`, `ok: false`, and safe scan metadata.
 - `search_database(query, category?, limit?)`: parameterized literal substring
   searches only on fictional `demo_records`. Categories: `project`, `customer`,
   `inventory`; maximum 10 results. No raw SQL, table choice, or database writes.
   Recognized SQL-operation attempts are denied before search; all remaining
   text is parameterized and wildcard-escaped. Policy categories also scope rows
   when the optional category is omitted.
+  Returned text is bounded and scanned per record. Blocked records retain their
+  IDs with safe placeholders; safe neighboring records remain available.
 - `send_email(to, subject, body)`: saves a `simulated_emails` row atomically with
   its execution and returns `delivered: false`. No SMTP/API transport exists.
   Recipient, subject, and body are bounded; subject header injection and transport
@@ -233,6 +246,10 @@ and contents. Other schema changes still require an explicit migration.
 Stage 3 needs no schema migration: it writes versioned `firewall_decision_v1`
 events into the existing `SecurityEvent.details` JSON column. Legacy events are
 preserved and excluded from firewall statistics. Back up SQLite before upgrading.
+Stage 4 also reuses the existing table, with `injection_scan_v1` event details.
+It stores hashes/offsets and safe metadata, not raw malicious tool output. Scan
+events and sanitized execution outcomes commit before a model request. Restored
+tool history is scanned again; legacy stored rows are not deleted or rewritten.
 
 User/assistant/tool protocol messages persist. Reads are paginated, writes commit
 explicitly, foreign keys remain enforced, and no database transaction is held
@@ -277,30 +294,36 @@ skips if the OS denies symlink creation; reparse-point and root-escape tests run
 backend/
   .env.example, requirements.txt, pytest.ini
   config/        security_policies.json
+                 injection_policy.json
   app/
     main.py
     core/        config.py, exceptions.py, logging.py, redaction.py
     database/    base.py, session.py, migrations.py, seed.py
     models/      original five models, demo_record.py, simulated_email.py
     schemas/     system.py, agent.py
-    routers/     health.py, system.py, agent.py, security.py
+    routers/     health.py, system.py, agent.py, security.py, injection.py
     services/    system.py
     agent/       errors.py, provider.py, provider_errors.py, history.py, service.py
     tools/       schemas.py, gateway.py
     security/    firewall.py, policy_engine.py, policies.py, risk_engine.py,
                  audit_service.py, schemas.py, documents.py, summaries.py
+      injection/ detector.py, normalizer.py, rules.py, risk_scorer.py,
+                 classifier.py, response_handler.py, processor.py,
+                 audit.py, schemas.py, config.py
     simulations/ reserved
     tests/       Stage 1/2 plus test_firewall.py and test_security_api.py
+                 test_injection.py, test_injection_api.py, test_injection_integration.py
   data/
     public/       project_report.txt, meeting_notes.txt, quarterly_summary.txt
+                  safe_project_report.txt and six injection demonstration fixtures
     confidential/ payroll_demo.txt, credentials_demo.txt
     agentguard.db (generated, ignored)
 frontend/         reserved; no frontend implementation
-docs/             stage3-security.md
+docs/             stage3-security.md, stage4-injection.md
 README.md, .gitignore
 ```
 
 All Python packages include `__init__.py`. Provider credentials/connectivity,
 model compatibility, and answer quality require a live API run; automated tests
-mock the LLM. Authentication, prompt-injection detection (Stage 4), attack
-simulations (Stage 5), and frontend functionality remain outside this implementation.
+mock the LLM. Authentication, attack simulations (Stage 5), and frontend
+functionality remain outside this implementation.
