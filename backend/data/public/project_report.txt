@@ -1,0 +1,6 @@
+FICTIONAL DEMONSTRATION DOCUMENT — Aurora Project Report
+The Aurora team is building a demonstration sensor dashboard for Nimbus Example Studio.
+The prototype is 80 percent complete. The public report and sample data are ready.
+The remaining work is documentation review and an accessibility check.
+The fictional budget is 12,000 demo credits; 9,000 have been used.
+Next milestone: complete the review on November 5, 2026.
