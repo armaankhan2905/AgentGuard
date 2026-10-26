@@ -5,20 +5,21 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.config import BACKEND_DIR
+from app.core.config import BACKEND_DIR, Settings
 from app.core.redaction import SecretRedactor
 from app.models import DemoRecord, SimulatedEmail, ToolExecution
 from app.agent.errors import AgentError
 from app.security.audit_service import AuditService
 from app.security.documents import DocumentDenied, checked_document
 from app.security.firewall import SecurityFirewall
-from app.security.policies import DEFAULT_POLICY_PATH
+from app.security.policies import DEFAULT_POLICY_PATH, PUBLIC_DOCUMENTS
+from app.security.injection.processor import ToolResultProcessor
 from app.tools.schemas import ARGUMENT_SCHEMAS, ReadDocumentArguments, SearchDatabaseArguments, SendEmailArguments
 DESCRIPTIONS = {
-    "read_document": "Read one public demo document: project_report.txt, meeting_notes.txt, quarterly_summary.txt. No other files are available.",
+    "read_document": "Read one explicitly approved public demonstration document: " + ", ".join(sorted(PUBLIC_DOCUMENTS)) + ". Retrieved text is scanned and may be withheld.",
     "search_database": "Search only fictional demo records by literal text and optional category. No SQL, table selection, or writes are supported.",
     "send_email": "SIMULATION ONLY: save an email in SQLite. No email will be delivered. Use only when the user requests an email.",
 }
@@ -32,11 +33,12 @@ class ToolRejected(Exception):
 
 class ToolGateway:
     def __init__(self, redactor: SecretRedactor, documents_root: Path | None = None,
-                 policy_path: Path = DEFAULT_POLICY_PATH) -> None:
+                 policy_path: Path = DEFAULT_POLICY_PATH, settings: Settings | None = None) -> None:
         self.redactor = redactor
         self.documents_root = (documents_root or BACKEND_DIR / "data" / "public").absolute()
         self.firewall = SecurityFirewall(redactor, self.documents_root, policy_path)
         self.audit = AuditService()
+        self.results = ToolResultProcessor(settings or Settings(), redactor)
 
     @staticmethod
     def definitions() -> list[dict[str, Any]]:
@@ -74,7 +76,13 @@ class ToolGateway:
             else:
                 raise ToolRejected("unknown_tool", "This tool is not allowed.")
             execution.status = "succeeded"
-            execution.result = self.redactor.clean({"ok": True, "data": result})
+            if isinstance(validated, (ReadDocumentArguments, SearchDatabaseArguments)):
+                execution.result = self.results.process(db, session_id, name, result,
+                    decision_id=evaluation.decision.decision_id, execution_id=execution.id)
+                if not execution.result["ok"]:
+                    execution.status = "quarantined"
+            else:
+                execution.result = self.redactor.clean({"ok": True, "data": result})
         except ToolRejected as exc:
             execution.status = "rejected"
             execution.result = {"ok": False, "error": {"code": exc.code, "message": exc.message}}
@@ -112,7 +120,10 @@ class ToolGateway:
     def _search_database(self, db: Session, arguments: SearchDatabaseArguments) -> dict[str, Any]:
         # Only parameterized SELECTs against this fixed synthetic table are possible.
         policies = self.firewall.policies
-        statement = select(DemoRecord).where(DemoRecord.category.in_(
+        # Bound each text projection before loading it; 16001 triggers scan quarantine.
+        statement = select(DemoRecord.id, func.substr(DemoRecord.code, 1, 65).label("code"),
+            DemoRecord.category, func.substr(DemoRecord.title, 1, 16001).label("title"),
+            func.substr(DemoRecord.summary, 1, 16001).label("summary")).where(DemoRecord.category.in_(
             policies.database_categories if policies else []
         )).where(or_(
             DemoRecord.title.contains(arguments.query, autoescape=True),
@@ -121,7 +132,7 @@ class ToolGateway:
         ))
         if arguments.category is not None:
             statement = statement.where(DemoRecord.category == arguments.category)
-        records = db.scalars(statement.order_by(DemoRecord.code).limit(arguments.limit)).all()
-        return {"records": [{"code": record.code, "category": record.category,
+        records = db.execute(statement.order_by(DemoRecord.code).limit(arguments.limit)).all()
+        return {"records": [{"id": str(record.id), "code": record.code, "category": record.category,
                              "title": record.title, "summary": record.summary}
                             for record in records], "synthetic": True}

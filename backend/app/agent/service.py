@@ -48,6 +48,7 @@ class AgentService:
         try:
             save_message(db, session_id, "user", text)
             messages = load_context(db, session_id, self.settings)
+            messages = self.gateway.results.restored_context(db, session_id, messages)
             db.commit()  # Release the read transaction before waiting for the provider.
             definitions = self.gateway.definitions()
             seen_ids: set[str] = set()

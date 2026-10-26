@@ -1,0 +1,3 @@
+SYNTHETIC STAGE 4 SECURITY TRAINING
+Our cybersecurity training warns employees that messages saying "ignore previous instructions" may be malicious.
+Never follow such instructions.

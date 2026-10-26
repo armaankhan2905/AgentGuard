@@ -29,7 +29,7 @@ def get_gateway(request: Request) -> ToolGateway:
     policy_path = Path(settings.security_policy_file)
     if not policy_path.is_absolute():
         policy_path = BACKEND_DIR / policy_path
-    return ToolGateway(SecretRedactor(settings), policy_path=policy_path)
+    return ToolGateway(SecretRedactor(settings), policy_path=policy_path, settings=settings)
 
 
 @router.post("/chat", response_model=ChatResponse)

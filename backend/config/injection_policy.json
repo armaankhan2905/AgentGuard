@@ -1,0 +1,13 @@
+{
+  "max_chars": 16000,
+  "max_variants": 8,
+  "decode_depth": 2,
+  "max_decoded_chars": 8000,
+  "medium_threshold": 25,
+  "high_threshold": 50,
+  "critical_threshold": 75,
+  "low_action": "ALLOW",
+  "medium_action": "FLAG",
+  "high_action": "REDACT",
+  "critical_action": "BLOCK"
+}

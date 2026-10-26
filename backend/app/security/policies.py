@@ -18,6 +18,10 @@ DOCUMENT_CATALOG: dict[str, Classification] = {
     "project_report.txt": "PUBLIC", "meeting_notes.txt": "PUBLIC",
     "quarterly_summary.txt": "PUBLIC", "payroll_demo.txt": "CONFIDENTIAL",
     "credentials_demo.txt": "RESTRICTED", "confidential_strategy.txt": "CONFIDENTIAL",
+    "safe_project_report.txt": "PUBLIC", "injection_override.txt": "PUBLIC",
+    "injection_exfiltration.txt": "PUBLIC", "injection_role_spoofing.txt": "PUBLIC",
+    "injection_encoded.txt": "PUBLIC", "injection_benign_quotation.txt": "PUBLIC",
+    "injection_mixed.txt": "PUBLIC",
 }
 PUBLIC_DOCUMENTS = frozenset(k for k, v in DOCUMENT_CATALOG.items() if v == "PUBLIC")
 
