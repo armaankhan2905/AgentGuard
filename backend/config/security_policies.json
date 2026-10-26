@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "rules": [
+    {"id": "DENY_CONFIDENTIAL_DOCUMENTS", "tool": "read_document", "effect": "DENY", "classification": "CONFIDENTIAL"},
+    {"id": "DENY_RESTRICTED_DOCUMENTS", "tool": "read_document", "effect": "DENY", "classification": "RESTRICTED"},
+    {"id": "ALLOW_PUBLIC_DOCUMENTS", "tool": "read_document", "effect": "ALLOW", "classification": "PUBLIC"},
+    {"id": "ALLOW_DEMO_SEARCH", "tool": "search_database", "effect": "ALLOW"},
+    {"id": "ALLOW_SIMULATED_EMAIL", "tool": "send_email", "effect": "ALLOW"}
+  ],
+  "database_categories": ["project", "customer", "inventory"],
+  "email_domains": ["example.com", "example.test"],
+  "email_recipients": ["demo@example.com", "mira@example.test"],
+  "email_max_body_chars": 4000
+}

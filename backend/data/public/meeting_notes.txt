@@ -1,0 +1,6 @@
+FICTIONAL DEMONSTRATION DOCUMENT — Team Meeting Notes
+Meeting date: October 20, 2026.
+Participants: Mira Sample, Devin Example, and Rowan Demo; all are fictional.
+Decisions: use synthetic records only and keep the Aurora public report concise.
+Actions: Mira reviews documentation; Devin checks accessibility; Rowan prepares the demo.
+No real customer, employee, or financial information appears in this document.

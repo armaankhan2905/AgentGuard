@@ -1,0 +1,43 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# SQLite databases and journals
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+backend/data/*
+!backend/data/public/
+!backend/data/confidential/
+
+# JavaScript dependencies and build artifacts
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+.tmp/
