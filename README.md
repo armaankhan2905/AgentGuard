@@ -1,13 +1,13 @@
 # AgentGuard — AI Firewall for Autonomous AI Agents
 
-**Stage 4: prompt-injection scanning.** Stage 1 health/status contracts, safe logging,
+**Stage 5: isolated attack simulation lab.** Stage 1 health/status contracts, safe logging,
 and existing database records are preserved. Version remains `0.1.0` to preserve
 the Stage 1 API contract.
 
 The agent uses a real configurable LLM API, persists conversations, and routes
 every tool call through `ToolGateway`. Its tools read approved fictional
 documents, search synthetic SQLite records, and save simulated emails. No real
-email delivery, arbitrary code/command execution, frontend, attack simulator,
+email delivery, arbitrary code/command execution, frontend,
 or approval workflow is implemented.
 
 Every tool request now passes through a default-deny firewall with server-owned
@@ -22,6 +22,13 @@ reliable original-text redaction preserves safe surrounding lines. See the
 configuration, scan APIs, limitations, and the file inventory. The Stage 3 firewall
 remains the final authority for every tool call. No complete injection protection
 or calibrated detection accuracy is claimed.
+
+Stage 5 adds eight synthetic scenarios, bounded baseline/protected comparisons,
+persisted traces and outcome metrics. Live model observations and scripted
+infrastructure tests are labeled and counted separately. Normal chat always keeps
+its firewall and scanner. See the [Stage 5 guide](docs/stage5-simulation.md) for
+isolation, local opt-in settings, exact Swagger requests, verification results,
+limitations, and the complete Stage 5 file inventory. No Stage 6 work is included.
 
 ## Windows PowerShell setup
 

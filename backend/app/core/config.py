@@ -42,8 +42,26 @@ class Settings:
     injection_policy_file: str = "config/injection_policy.json"
     injection_ai_classifier_enabled: bool = False
     injection_ai_timeout_seconds: float = 3.0
+    simulation_enabled: bool = False
+    simulation_live_enabled: bool = False
+    simulation_max_tool_calls: int = 6
+    simulation_max_iterations: int = 4
+    simulation_max_provider_requests: int = 8
+    simulation_max_duration_seconds: float = 90.0
+    simulation_max_payload_chars: int = 6000
+    simulation_max_trace_events: int = 240
+    simulation_max_trace_bytes: int = 262144
+    simulation_runs_per_minute: int = 3
 
     def __post_init__(self) -> None:
+        for value, low, high in (
+            (self.simulation_max_tool_calls, 1, 12), (self.simulation_max_iterations, 1, 8),
+            (self.simulation_max_provider_requests, 2, 16), (self.simulation_max_duration_seconds, 1, 180),
+            (self.simulation_max_payload_chars, 100, 6000), (self.simulation_max_trace_events, 20, 500),
+            (self.simulation_max_trace_bytes, 16384, 1048576), (self.simulation_runs_per_minute, 1, 10),
+        ):
+            if not low <= value <= high:
+                raise ValueError("Simulation resource limits are outside their supported bounds.")
         if not 0 < self.injection_ai_timeout_seconds <= 10:
             raise ValueError("INJECTION_AI_TIMEOUT_SECONDS must be between 0 and 10.")
         if self.app_environment not in {"local", "production", "test"}:
@@ -95,4 +113,14 @@ def get_settings() -> Settings:
         injection_policy_file=os.getenv("INJECTION_POLICY_FILE", "config/injection_policy.json").strip(),
         injection_ai_classifier_enabled=os.getenv("INJECTION_AI_CLASSIFIER_ENABLED", "false").lower() == "true",
         injection_ai_timeout_seconds=float(_number("INJECTION_AI_TIMEOUT_SECONDS", "3", float)),
+        simulation_enabled=os.getenv("SIMULATION_ENABLED", "false").lower() == "true",
+        simulation_live_enabled=os.getenv("SIMULATION_LIVE_ENABLED", "false").lower() == "true",
+        simulation_max_tool_calls=int(_number("SIMULATION_MAX_TOOL_CALLS", "6", int)),
+        simulation_max_iterations=int(_number("SIMULATION_MAX_ITERATIONS", "4", int)),
+        simulation_max_provider_requests=int(_number("SIMULATION_MAX_PROVIDER_REQUESTS", "8", int)),
+        simulation_max_duration_seconds=float(_number("SIMULATION_MAX_DURATION_SECONDS", "90", float)),
+        simulation_max_payload_chars=int(_number("SIMULATION_MAX_PAYLOAD_CHARS", "6000", int)),
+        simulation_max_trace_events=int(_number("SIMULATION_MAX_TRACE_EVENTS", "240", int)),
+        simulation_max_trace_bytes=int(_number("SIMULATION_MAX_TRACE_BYTES", "262144", int)),
+        simulation_runs_per_minute=int(_number("SIMULATION_RUNS_PER_MINUTE", "3", int)),
     )

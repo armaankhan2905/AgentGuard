@@ -68,6 +68,7 @@ def test_existing_stage1_database_is_upgraded_without_losing_history(tmp_path: P
         assert set(inspect(database.engine).get_table_names()) == {
             "agent_sessions", "chat_messages", "tool_executions", "security_events",
             "approval_requests", "demo_records", "simulated_emails",
+            "simulation_scenarios", "simulation_runs", "simulation_traces", "simulation_results",
         }
     finally:
         database.close()
