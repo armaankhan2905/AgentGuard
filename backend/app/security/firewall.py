@@ -4,6 +4,7 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass
+from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
@@ -55,11 +56,15 @@ class Evaluation:
 
 class SecurityFirewall:
     def __init__(self, redactor: SecretRedactor, documents_root: Path | None = None,
-                 policy_path: Path = DEFAULT_POLICY_PATH) -> None:
+                 policy_path: Path = DEFAULT_POLICY_PATH,
+                 *, document_check: Callable[[str], None] | None = None) -> None:
         self.redactor = redactor
         self.documents_root = (documents_root or BACKEND_DIR / "data" / "public").absolute()
         self.policies = load_policies(policy_path)
         self.engine = PolicyEngine(self.policies)
+        # Server-owned resource adapter for the isolated simulation store. Normal
+        # gateways always use the existing filesystem check; no API exposes this.
+        self.document_check = document_check or (lambda name: checked_document(self.documents_root, name))
 
     def evaluate(self, session_id: UUID, tool_name: str, arguments: str,
                  *, source: str = "gateway") -> Evaluation:
@@ -100,7 +105,7 @@ class SecurityFirewall:
                              "RESTRICTED": "DENY_RESTRICTED_DOCUMENTS"}.get(classification, "DENY_UNKNOWN_DOCUMENT")
                 else:
                     try:
-                        checked_document(self.documents_root, filename)
+                        self.document_check(filename)
                     except DocumentDenied:
                         guard = "DENY_DOCUMENT_LINK"
             elif isinstance(validated, SearchDatabaseArguments):

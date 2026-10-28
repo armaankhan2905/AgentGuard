@@ -7,8 +7,10 @@ from app.models.security_event import SecurityEvent
 from app.models.tool_execution import ToolExecution
 from app.models.demo_record import DemoRecord
 from app.models.simulated_email import SimulatedEmail
+from app.models.simulation import SimulationScenario, SimulationRun, SimulationTrace, SimulationResult
 
 __all__ = [
     "AgentSession", "ChatMessage", "ToolExecution", "SecurityEvent", "ApprovalRequest",
     "DemoRecord", "SimulatedEmail",
+    "SimulationScenario", "SimulationRun", "SimulationTrace", "SimulationResult",
 ]
