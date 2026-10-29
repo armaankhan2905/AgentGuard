@@ -25,7 +25,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import type { NeuralNode } from "./model";
+import { animateEdges, type NeuralNode } from "./model";
 import { useInspector } from "../components/Inspector";
 const icons = {
   agent: Bot,
@@ -45,7 +45,7 @@ const NeuralNodeView = memo(function NeuralNodeView({
   const Icon = icons[data.kind as keyof typeof icons] || GitBranch;
   return (
     <div
-      className={`neural-node node-${data.kind} ${selected ? "is-selected" : ""}`}
+      className={`neural-node node-${data.kind} ${selected ? "is-selected" : ""} ${typeof data.tone === "string" ? `live-${data.tone}` : ""}`}
       title={data.description}
       role="button"
       tabIndex={0}
@@ -58,12 +58,16 @@ const NeuralNodeView = memo(function NeuralNodeView({
       }}
     >
       <Handle type="target" position={Position.Left} />
+      {typeof data.pulse === "string" && (
+        // Re-keyed per event so the CSS pulse replays once; disabled by reduced motion.
+        <span className="node-pulse" key={data.pulse} aria-hidden="true" />
+      )}
       <div className="node-top">
         <span className="node-icon">
           <Icon size={22} />
         </span>
         <span
-          className={`node-state ${data.state === "DENY" ? "danger" : data.state === "ALLOW" ? "success" : ""}`}
+          className={`node-state ${data.state === "DENY" ? "danger" : data.state === "ALLOW" ? "success" : typeof data.tone === "string" ? data.tone : ""}`}
         >
           {data.state}
         </span>
@@ -92,13 +96,7 @@ function Canvas({
   useEffect(() => setNodes(graph.nodes), [graph.nodes, setNodes]);
   const edges = useMemo(
     () =>
-      graph.edges.map((e) => ({
-        ...e,
-        animated:
-          !reduced &&
-          !!selected &&
-          (e.source === selected || e.target === selected),
-      })),
+      animateEdges(graph.edges, selected, !!reduced),
     [graph.edges, reduced, selected],
   );
   const select = useCallback(

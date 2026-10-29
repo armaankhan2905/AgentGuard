@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, ArrowUpRight } from "lucide-react";
 import { api } from "../api/client";
 import { useInspector } from "../components/Inspector";
+import type { LiveEvent } from "../live/events";
+import { useLiveEvent } from "../live/hooks";
 import {
   Badge,
   date,
@@ -26,7 +28,29 @@ export default function Audit() {
   const [filters, setFilters] = useState(defaults);
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
+  const [fresh, setFresh] = useState(0);
+  const refresh = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(refresh.current), []);
   const inspect = useInspector();
+  const client = useQueryClient();
+  const onNewest = offset === 0 && filters.sort === "desc";
+  // Committed authorization records refresh page 1 in place (filters and the open
+  // inspector are kept); on older pages they only raise an indicator, never a jump.
+  useLiveEvent(
+    useCallback(
+      (event: LiveEvent) => {
+        if (event.source !== "firewall") return;
+        if (!onNewest) setFresh((n) => n + 1);
+        else if (!refresh.current)
+          // One refetch per burst, not one per event.
+          refresh.current = setTimeout(() => {
+            refresh.current = undefined;
+            void client.invalidateQueries({ queryKey: ["audit-events", filters, 0] });
+          }, 800);
+      },
+      [client, filters, onNewest],
+    ),
+  );
   const events = useQuery({
     queryKey: ["audit-events", filters, offset],
     queryFn: ({ signal }) =>
@@ -50,6 +74,7 @@ export default function Audit() {
             e.preventDefault();
             setFilters(draft);
             setOffset(0);
+            setFresh(0);
           }}
         >
           <label>
@@ -133,6 +158,26 @@ export default function Audit() {
           </label>
         }
       >
+        {fresh > 0 && !onNewest && (
+          <div className="new-events" role="status">
+            <span>
+              {fresh} new authorization {fresh === 1 ? "event" : "events"} recorded
+              since you opened this page (before applying your filters)
+            </span>
+            <button
+              className="text-button"
+              onClick={() => {
+                const next = { ...filters, sort: "desc" };
+                setDraft(next);
+                setFilters(next);
+                setOffset(0);
+                setFresh(0);
+              }}
+            >
+              Show newest
+            </button>
+          </div>
+        )}
         {events.isPending ? (
           <Loading />
         ) : events.isError ? (
@@ -206,7 +251,10 @@ export default function Audit() {
               offset={offset}
               size={20}
               count={events.data.length}
-              onChange={setOffset}
+              onChange={(next) => {
+                setOffset(next);
+                if (next === 0 && filters.sort === "desc") setFresh(0);
+              }}
             />
           </>
         )}

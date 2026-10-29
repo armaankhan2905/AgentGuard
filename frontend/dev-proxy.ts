@@ -77,6 +77,13 @@ export function backendProxy(target: string): ProxyOptions {
         outgoing.removeHeader("x-forwarded-for");
         outgoing.removeHeader("x-forwarded-host");
       });
+      // If the backend dies mid-response (e.g. a live SSE stream), end the browser's
+      // side too; otherwise EventSource waits for its heartbeat watchdog to notice.
+      proxy.on("proxyRes", (upstream, _incoming, response) => {
+        upstream.on("close", () => {
+          if (!upstream.complete && !response.writableEnded) response.destroy();
+        });
+      });
     },
   };
 }

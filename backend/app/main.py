@@ -11,7 +11,7 @@ from app.core.config import APPLICATION_NAME, APPLICATION_VERSION, Settings, get
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.database.session import Database
-from app.routers import agent, health, injection, security, simulation, system
+from app.routers import agent, health, injection, security, simulation, stream, system
 
 logger = logging.getLogger("agentguard.lifecycle")
 
@@ -38,7 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application = FastAPI(
         title=APPLICATION_NAME,
-        description="Stage 5: protected agent and opt-in isolated attack simulation lab.",
+        description="Stage 7: protected agent, isolated attack simulation lab and local live security stream.",
         version=APPLICATION_VERSION,
         lifespan=lifespan,
         debug=False,
@@ -58,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if config.app_environment == "local" and config.security_dev_endpoints:
         application.include_router(security.router)
         application.include_router(injection.router)
+        application.include_router(stream.router)
         if config.simulation_enabled:
             application.include_router(simulation.router)
     return application

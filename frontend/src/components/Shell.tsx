@@ -15,6 +15,8 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useSystem } from "../api/hooks";
+import { useLiveMonitoring } from "../live/hooks";
+import { NotificationCenter, StreamIndicator } from "./Live";
 import { Badge } from "./ui";
 const navigation = [
   ["/", "Neural Overview", Network],
@@ -30,6 +32,8 @@ export function Shell() {
   const location = useLocation();
   const query = useQueryClient();
   const status = useSystem();
+  // One shared stream for the whole app; API status and stream status stay separate.
+  useLiveMonitoring(query);
   const current =
     navigation.find((n) => n[0] === location.pathname)?.[1] || "Workspace";
   return (
@@ -99,6 +103,7 @@ export function Shell() {
                   ? "Backend connected"
                   : "Connecting"}
             </Badge>
+            <StreamIndicator />
             <span className="provider-label">
               AI{" "}
               {status.isError
@@ -107,6 +112,7 @@ export function Shell() {
                   ? "configured · unverified"
                   : "not configured"}
             </span>
+            <NotificationCenter />
             <button
               aria-label="Refresh backend data"
               onClick={() => query.invalidateQueries()}
@@ -131,7 +137,7 @@ export function Shell() {
           <span>
             AGENTGUARD <span className="cyan">/</span> NEURAL SHIELD
           </span>
-          <span>Local development · Historical records, not a live stream</span>
+          <span>Local development · Committed records, streamed when connected</span>
           <span>
             {status.data && !status.isError
               ? `v${status.data.version}`

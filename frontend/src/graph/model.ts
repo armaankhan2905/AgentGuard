@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { FirewallEvent, Trace } from "../api/types";
+import type { LiveEvent } from "../live/events";
 export type NeuralData = {
   label: string;
   subtitle: string;
@@ -271,3 +272,110 @@ export function traceGraph(traces: Trace[], baseline: boolean) {
   }
   return graph;
 }
+
+const tones = { success: "#35d399", danger: "#ef6c79", warning: "#f5b95c", cyan: "#22d3ee" };
+export type LiveTone = keyof typeof tones;
+/**
+ * Highlight only what the recorded event proves. A firewall ALLOW lights the decision,
+ * not the tool; execution needs a TOOL_EXECUTED record; a scan never implies exfiltration.
+ */
+export function liveGraph(event: LiveEvent): { graph: ReturnType<typeof topology>; caption: string } {
+  const graph = topology();
+  const text = (key: string) => {
+    const value = event.metadata[key];
+    return typeof value === "string" ? value : undefined;
+  };
+  const mark = (id: string, state: string, tone: LiveTone) => {
+    graph.nodes = graph.nodes.map((n) =>
+      n.id === id ? { ...n, data: { ...n.data, state, tone, pulse: event.id } } : n,
+    );
+  };
+  const edge = (id: string, tone: LiveTone, label?: string) => {
+    graph.edges = graph.edges.map((e) =>
+      e.id === id
+        ? {
+            ...e,
+            ...(label ? { label } : {}),
+            className: `live-edge ${tone}`,
+            style: { stroke: tones[tone], strokeWidth: 2.6 },
+            markerEnd: { type: "arrowclosed" as const, color: tones[tone] },
+            data: { description: event.summary, event, live: true },
+          }
+        : e,
+    );
+  };
+  const tool = toolNode(text("tool_name") || "");
+  const viaAgent = text("origin") === "gateway";
+  if (event.is_simulation)
+    return { graph, caption: "Simulation event · see the Attack Simulation lab" };
+  switch (event.event_type) {
+    case "FIREWALL_ALLOW":
+    case "FIREWALL_DENY": {
+      const allow = event.event_type === "FIREWALL_ALLOW";
+      const tone: LiveTone = allow ? "success" : "danger";
+      if (viaAgent) {
+        edge("agent-gateway", "cyan");
+        edge("gateway-firewall", tone);
+      }
+      mark("firewall", allow ? "ALLOW" : "DENY", tone);
+      if (tool) edge(`firewall-${tool}`, tone, allow ? "ALLOW · authorization" : "DENY · not executed");
+      return {
+        graph,
+        caption: `${allow ? "Authorization recorded" : "Denial recorded"} · ${text("policy_id") || ""}${viaAgent ? "" : " · direct evaluation, no agent"}`,
+      };
+    }
+    case "TOOL_EXECUTED":
+    case "TOOL_REJECTED":
+    case "TOOL_FAILED": {
+      if (!tool) return { graph, caption: "Tool record without a known tool node" };
+      edge("agent-gateway", "cyan");
+      if (event.event_type === "TOOL_REJECTED") {
+        edge("gateway-firewall", "danger");
+        mark("firewall", "DENY", "danger");
+        edge(`firewall-${tool}`, "danger", "Not executed");
+        return { graph, caption: "Tool request denied · no execution recorded" };
+      }
+      const quarantined = text("status") === "quarantined";
+      edge("gateway-firewall", "success");
+      edge(`firewall-${tool}`, "success", "ALLOW");
+      mark(tool, event.event_type === "TOOL_FAILED" ? "Failed" : quarantined ? "Executed · quarantined" : "Executed",
+        event.event_type === "TOOL_FAILED" || quarantined ? "warning" : "success");
+      return { graph, caption: `Execution recorded · ${text("status")}` };
+    }
+    case "CONTENT_SCANNED":
+    case "INJECTION_DETECTED":
+    case "CONTENT_FLAGGED":
+    case "CONTENT_REDACTED":
+    case "CONTENT_BLOCKED": {
+      const action = text("action") || "ALLOW";
+      const tone: LiveTone =
+        event.event_type === "CONTENT_SCANNED"
+          ? "success"
+          : action === "BLOCK" && ["HIGH", "CRITICAL"].includes(event.severity)
+            ? "danger"
+            : "warning";
+      const origin = toolNode(text("source_tool") || "");
+      if (origin) edge(`${origin}-scanner`, tone, "returned content");
+      mark("scanner", `${text("classification") || "SCANNED"} · ${action}`, tone);
+      if (origin) edge("scanner-agent", tone, action === "BLOCK" ? "withheld from model" : "handled result");
+      return {
+        graph,
+        caption: origin
+          ? `Returned ${origin} content scanned · ${action}`
+          : `${text("source_tool") === "manual_test" ? "Manual scan" : "History rescan"} · no tool path involved`,
+      };
+    }
+    default:
+      return { graph, caption: event.summary };
+  }
+}
+
+/** Selection and live-event edges animate; nothing animates under reduced motion. */
+export const animateEdges = (edges: Edge[], selected: string | undefined, reduced: boolean) =>
+  edges.map((e) => ({
+    ...e,
+    animated:
+      !reduced &&
+      ((!!selected && (e.source === selected || e.target === selected)) ||
+        (e.data as { live?: boolean } | undefined)?.live === true),
+  }));

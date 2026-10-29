@@ -52,6 +52,10 @@ class Settings:
     simulation_max_trace_events: int = 240
     simulation_max_trace_bytes: int = 262144
     simulation_runs_per_minute: int = 3
+    stream_poll_seconds: float = 1.0
+    stream_heartbeat_seconds: float = 15.0
+    stream_max_connections: int = 16
+    stream_max_lifetime_seconds: float = 60.0
 
     def __post_init__(self) -> None:
         for value, low, high in (
@@ -62,6 +66,9 @@ class Settings:
         ):
             if not low <= value <= high:
                 raise ValueError("Simulation resource limits are outside their supported bounds.")
+        if not (0.02 <= self.stream_poll_seconds <= 10 and 0.1 <= self.stream_heartbeat_seconds <= 60
+                and 1 <= self.stream_max_connections <= 64 and 0.5 <= self.stream_max_lifetime_seconds <= 600):
+            raise ValueError("Security stream limits are outside their supported bounds.")
         if not 0 < self.injection_ai_timeout_seconds <= 10:
             raise ValueError("INJECTION_AI_TIMEOUT_SECONDS must be between 0 and 10.")
         if self.app_environment not in {"local", "production", "test"}:
@@ -123,4 +130,8 @@ def get_settings() -> Settings:
         simulation_max_trace_events=int(_number("SIMULATION_MAX_TRACE_EVENTS", "240", int)),
         simulation_max_trace_bytes=int(_number("SIMULATION_MAX_TRACE_BYTES", "262144", int)),
         simulation_runs_per_minute=int(_number("SIMULATION_RUNS_PER_MINUTE", "3", int)),
+        stream_poll_seconds=float(_number("STREAM_POLL_SECONDS", "1", float)),
+        stream_heartbeat_seconds=float(_number("STREAM_HEARTBEAT_SECONDS", "15", float)),
+        stream_max_connections=int(_number("STREAM_MAX_CONNECTIONS", "16", int)),
+        stream_max_lifetime_seconds=float(_number("STREAM_MAX_LIFETIME_SECONDS", "60", float)),
     )
