@@ -2031,3 +2031,270 @@ tbody tr:hover {
   color: #94a3b8;
   font-size: 8px;
 }
+
+/* Stage 7 · live monitoring. Uses the existing Neural Shield tokens only. */
+.neural-node {
+  position: relative;
+}
+.neural-node.live-success {
+  border-color: var(--green);
+  box-shadow: 0 0 26px #35d39926;
+}
+.neural-node.live-danger {
+  border-color: var(--red);
+  box-shadow: 0 0 26px #ef6c7930;
+}
+.neural-node.live-warning {
+  border-color: var(--amber);
+  box-shadow: 0 0 26px #f5b95c26;
+}
+.neural-node.live-cyan {
+  border-color: var(--cyan);
+}
+.node-state.warning {
+  color: var(--amber);
+}
+.node-pulse {
+  position: absolute;
+  inset: -1px;
+  border-radius: 8px;
+  pointer-events: none;
+  border: 2px solid currentColor;
+  animation: node-pulse 1.4s ease-out 2;
+  opacity: 0;
+}
+.live-success .node-pulse {
+  color: var(--green);
+}
+.live-danger .node-pulse {
+  color: var(--red);
+}
+.live-warning .node-pulse {
+  color: var(--amber);
+}
+@keyframes node-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+.live-edge .react-flow__edge-text {
+  font-weight: 600;
+}
+.live-edge.success .react-flow__edge-text {
+  fill: var(--green);
+}
+.live-edge.danger .react-flow__edge-text {
+  fill: var(--red);
+}
+.live-edge.warning .react-flow__edge-text {
+  fill: var(--amber);
+}
+.stream-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stream-indicator .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.stream-indicator.CONNECTED {
+  color: var(--green);
+}
+.stream-indicator.CONNECTING,
+.stream-indicator.RECONNECTING {
+  color: var(--amber);
+}
+.stream-indicator.ERROR,
+.stream-indicator.DISCONNECTED {
+  color: var(--red);
+}
+.stream-indicator.CONNECTED .status-dot {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+.notify-button {
+  position: relative;
+}
+.notify-count {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.notify-panel {
+  position: fixed;
+  z-index: 70;
+  right: 18px;
+  top: 70px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 100px));
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: #0f192a;
+  box-shadow: 0 20px 90px #000b;
+}
+.notify-panel .panel-header {
+  padding: 14px 16px;
+}
+.notify-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.notify-toolbar button {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+.notify-list {
+  overflow: auto;
+}
+.notify-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #24314970;
+  border-radius: 0;
+  background: none;
+  padding: 12px 16px;
+}
+.notify-item.unread {
+  background: #22d3ee08;
+}
+.notify-item > i {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+.notify-item.warning > i {
+  background: var(--amber);
+}
+.notify-item.critical > i {
+  background: var(--red);
+}
+.notify-item strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+}
+.notify-item small,
+.notify-item time {
+  font-size: 9px;
+  color: var(--muted);
+}
+.live-feed {
+  display: flex;
+  flex-direction: column;
+}
+.feed-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.feed-toolbar select,
+.feed-toolbar button {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+.feed-toolbar .spacer {
+  flex: 1;
+}
+.feed-list {
+  max-height: 340px;
+  overflow: auto;
+}
+.feed-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 112px minmax(110px, 160px) 1fr 74px 84px;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #24314970;
+  border-radius: 0;
+  background: none;
+  padding: 11px 20px;
+}
+.feed-row.historical {
+  opacity: 0.62;
+}
+.feed-row > span {
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-row time {
+  font-size: 9px;
+  color: var(--muted);
+}
+.feed-row .live-tag {
+  font-size: 8px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.feed-row.historical .live-tag {
+  color: var(--muted);
+}
+.new-events {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid #22d3ee40;
+  background: #22d3ee0b;
+  font-size: 11px;
+  color: var(--cyan);
+}
+.replay-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 700px) {
+  .feed-row {
+    grid-template-columns: 1fr auto;
+  }
+  .feed-row > span,
+  .feed-row .live-tag {
+    display: none;
+  }
+  .stream-indicator > span:last-child {
+    display: none;
+  }
+}

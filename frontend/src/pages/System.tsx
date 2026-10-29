@@ -6,7 +6,11 @@ import {
   ShieldCheck,
   FlaskConical,
   ScanLine,
+  Radio,
+  RotateCw,
 } from "lucide-react";
+import { useStream } from "../live/hooks";
+import { securityStream } from "../live/stream";
 import { api } from "../api/client";
 import { useSystem, usePolicies, useScanStats } from "../api/hooks";
 import {
@@ -19,6 +23,7 @@ import {
 } from "../components/ui";
 export default function System() {
   const status = useSystem();
+  const stream = useStream();
   const health = useQuery({
     queryKey: ["health"],
     queryFn: ({ signal }) => api.health(signal),
@@ -97,6 +102,54 @@ export default function System() {
       {status.error && (
         <ErrorState error={status.error} retry={() => status.refetch()} />
       )}
+      <Panel title="Live security stream" kicker="SEPARATE FROM API STATUS">
+        <div className="panel-body">
+          <div className="inline">
+            <Radio size={20} />
+            <Badge
+              tone={
+                stream.status === "CONNECTED"
+                  ? "success"
+                  : stream.status === "DISCONNECTED" || stream.status === "ERROR"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              {stream.status}
+            </Badge>
+            <span className="muted-text">{stream.reason}</span>
+            {stream.status !== "CONNECTED" && (
+              <button className="text-button" onClick={() => securityStream.reconnect()}>
+                <RotateCw size={14} />
+                Reconnect stream
+              </button>
+            )}
+          </div>
+          <dl className="facts">
+            <dt>Transport</dt>
+            <dd>Server-Sent Events · GET /api/security/stream</dd>
+            <dt>Resume cursor</dt>
+            <dd className="mono">{stream.cursor || "None yet"}</dd>
+            <dt>Last message</dt>
+            <dd>
+              {stream.lastMessageAt
+                ? new Date(stream.lastMessageAt).toLocaleTimeString()
+                : "None"}
+            </dd>
+            <dt>Retry attempts</dt>
+            <dd>{stream.attempts}</dd>
+            <dt>Events in view</dt>
+            <dd>{stream.events.length} (bounded to 200)</dd>
+            <dt>Malformed messages dropped</dt>
+            <dd>{stream.malformed}</dd>
+          </dl>
+          <Notice>
+            The stream mirrors committed database records. If it drops, the rest of
+            the workspace keeps working; reconnection resumes from the cursor and
+            recovers events recorded meanwhile.
+          </Notice>
+        </div>
+      </Panel>
       <div className="two-columns">
         <Panel
           title="Provider verification"

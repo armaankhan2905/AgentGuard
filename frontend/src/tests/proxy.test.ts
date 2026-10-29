@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import { describe, expect, it, vi } from "vitest";
 import { backendProxy, localRequestAllowed } from "../../dev-proxy";
 
 describe("local API proxy boundary", () => {
@@ -35,4 +36,17 @@ describe("local API proxy boundary", () => {
     expect(backendProxy("http://127.0.0.1:8000").target).toBe(
       "http://127.0.0.1:8000",
     ));
+  it("closes the browser response when the backend aborts a stream", () => {
+    const handlers: Record<string, (...args: never[]) => void> = {};
+    const proxy = { on: (name: string, fn: (...args: never[]) => void) => (handlers[name] = fn) };
+    backendProxy("http://127.0.0.1:8000").configure?.(proxy as never, {});
+    for (const complete of [false, true]) {
+      const upstream = new EventEmitter() as EventEmitter & { complete: boolean };
+      upstream.complete = complete;
+      const response = { writableEnded: false, destroy: vi.fn() };
+      (handlers.proxyRes as (u: unknown, i: unknown, r: unknown) => void)(upstream, {}, response);
+      upstream.emit("close");
+      expect(response.destroy).toHaveBeenCalledTimes(complete ? 0 : 1);
+    }
+  });
 });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,7 +17,11 @@ import {
 } from "../api/hooks";
 import type { FirewallEvent } from "../api/types";
 import { NeuralCanvas } from "../graph/NeuralCanvas";
-import { decisionGraph } from "../graph/model";
+import { decisionGraph, liveGraph } from "../graph/model";
+import { inspectEvent, LiveFeed } from "../components/Live";
+import { useInspector } from "../components/Inspector";
+import type { LiveEvent } from "../live/events";
+import { useLiveEvent } from "../live/hooks";
 import {
   Badge,
   date,
@@ -39,7 +43,27 @@ export default function Overview() {
     queryFn: ({ signal }) => api.events({ limit: 5 }, signal),
   });
   const [selected, setSelected] = useState<FirewallEvent>();
-  const graph = useMemo(() => decisionGraph(selected), [selected]);
+  // A clicked live event stays pinned; a newly received one shows briefly, latest wins.
+  const [pinned, setPinned] = useState<LiveEvent>();
+  const [flash, setFlash] = useState<LiveEvent>();
+  const inspect = useInspector();
+  useLiveEvent(
+    useCallback((event: LiveEvent) => {
+      if (!event.is_simulation && event.event_type !== "CONTENT_SCANNED")
+        setFlash(event);
+    }, []),
+  );
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(undefined), 6000);
+    return () => clearTimeout(timer);
+  }, [flash]);
+  const focus = pinned || (!selected ? flash : undefined);
+  const live = useMemo(() => (focus ? liveGraph(focus) : undefined), [focus]);
+  const graph = useMemo(
+    () => live?.graph || decisionGraph(selected),
+    [live, selected],
+  );
   return (
     <>
       <PageTitle
@@ -107,17 +131,27 @@ export default function Overview() {
           title="The protection network"
           kicker="NEURAL MAP"
           actions={
-            <Badge tone={selected ? "cyan" : "neutral"}>
-              {selected ? "Historical event selected" : "System topology"}
+            <Badge tone={focus || selected ? "cyan" : "neutral"}>
+              {pinned
+                ? pinned.historical
+                  ? "Recorded event selected"
+                  : "Live event selected"
+                : focus
+                  ? "New event received"
+                  : selected
+                    ? "Historical event selected"
+                    : "System topology"}
             </Badge>
           }
         >
           <NeuralCanvas
             graph={graph}
             label={
-              selected
-                ? `Recorded decision · ${date(selected.timestamp)}`
-                : "Known architecture · select a node to inspect"
+              live && focus
+                ? `${live.caption} · ${date(focus.timestamp)}`
+                : selected
+                  ? `Recorded decision · ${date(selected.timestamp)}`
+                  : "Known architecture · select a node to inspect"
             }
           />
           <div className="network-legend">
@@ -137,10 +171,13 @@ export default function Overview() {
               <i className="danger" />
               Denied / blocked
             </span>
-            {selected && (
+            {(selected || pinned) && (
               <button
                 className="text-button"
-                onClick={() => setSelected(undefined)}
+                onClick={() => {
+                  setSelected(undefined);
+                  setPinned(undefined);
+                }}
               >
                 <X size={13} />
                 Clear event
@@ -186,6 +223,19 @@ export default function Overview() {
         </aside>
       </div>
       <Panel
+        title="Live security activity"
+        kicker="COMMITTED EVENTS · STREAMED"
+      >
+        <LiveFeed
+          selected={pinned?.id}
+          onSelect={(event) => {
+            setPinned(event);
+            setSelected(undefined);
+            inspectEvent(inspect, event);
+          }}
+        />
+      </Panel>
+      <Panel
         title="Recorded decisions"
         kicker="AUDIT SNAPSHOT"
         actions={
@@ -209,7 +259,10 @@ export default function Overview() {
               <button
                 className={`event-row ${selected?.decision_id === event.decision_id ? "selected" : ""}`}
                 key={event.decision_id}
-                onClick={() => setSelected(event)}
+                onClick={() => {
+                  setPinned(undefined);
+                  setSelected(event);
+                }}
               >
                 <Badge tone={decisionTone(event.decision)}>
                   {event.decision}

@@ -1,6 +1,6 @@
 # AgentGuard — AI Firewall for Autonomous AI Agents
 
-**Stage 6: Neural Shield interactive frontend.** Stage 1 health/status contracts, safe logging,
+**Stage 7: real-time security monitoring.** Stage 1 health/status contracts, safe logging,
 and existing database records are preserved. Version remains `0.1.0` to preserve
 the Stage 1 API contract.
 
@@ -35,7 +35,13 @@ comparisons, audit exploration, and system diagnostics. See the
 [Stage 6 frontend guide](docs/stage6-frontend.md) for exact PowerShell commands,
 API mapping, file inventory, verification results, and limitations.
 Open [Neural Shield](http://127.0.0.1:5173/) with both development servers running.
-Stages 7–10 are not implemented.
+
+Stage 7 streams committed security records to the browser over Server-Sent Events
+(`GET /api/security/stream`, local development routes only): a live activity feed,
+graph paths that react to recorded events, notifications, auto-refreshing metrics and
+audit pages, and stream-driven simulation monitoring with historical replay. See
+[Stage 7 real-time monitoring](docs/stage7-realtime-monitoring.md) and the
+[Stage 7 verification report](docs/stage7-verification.md). Stages 8–10 are not implemented.
 
 ## Windows PowerShell setup
 
@@ -81,10 +87,11 @@ Start the backend:
 
 ```powershell
 Set-Location .\backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --no-access-log --no-proxy-headers
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --no-access-log --no-proxy-headers --timeout-graceful-shutdown 3
 ```
 
-Stop with **Ctrl+C**. No virtual-environment activation or execution-policy change
+Stop with **Ctrl+C**. `--timeout-graceful-shutdown 3` stops open live streams promptly
+(browsers resume from their cursor when the server returns). No virtual-environment activation or execution-policy change
 is required. Change the initial path for another checkout location.
 [Swagger UI](http://127.0.0.1:8000/docs) documents the endpoints.
 Without credentials, health/status/session reads still work; chat returns 503
@@ -334,17 +341,18 @@ backend/
     confidential/ payroll_demo.txt, credentials_demo.txt
     agentguard.db (generated, ignored)
 frontend/         React / TypeScript / Vite Neural Shield application
-  src/            api/, components/, graph/, pages/, tests/, App.tsx, main.tsx, styles.css
+  src/            api/, components/, graph/, live/, pages/, tests/, App.tsx, main.tsx, styles.css
   public/         shield.svg
   .env.example, package.json, package-lock.json, dev-proxy.ts,
   vite.config.ts, vitest.config.ts, tsconfig.json, eslint.config.js, index.html
 docs/             stage3-security.md, stage4-injection.md,
-                  stage5-simulation.md, stage6-frontend.md
+                  stage5-simulation.md, stage6-frontend.md, stage6-verification.md,
+                  stage7-realtime-monitoring.md, stage7-verification.md
 README.md, .gitignore
 ```
 
 All Python packages include `__init__.py`. Provider credentials/connectivity,
 model compatibility, and answer quality require a live API run; automated tests
 mock the LLM. The frontend uses the real backend without fixture fallbacks.
-Authentication, real-time streaming, approval workflows, comprehensive hardening,
-and deployment remain outside Stage 6.
+Authentication, approval workflows, comprehensive hardening, and deployment remain
+outside Stage 7. The live stream is a local, unauthenticated demonstration feature.

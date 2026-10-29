@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Square, ArrowUpRight, FlaskConical } from "lucide-react";
+import { Play, Square, ArrowUpRight, FlaskConical, History } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
 import type { Mode, Variant } from "../api/types";
@@ -19,6 +19,7 @@ import {
 } from "../components/ui";
 import { SimulationResult } from "../components/SimulationResult";
 import { SimulationStats } from "../components/SimulationStats";
+import { useStream } from "../live/hooks";
 export const isActive = (status?: string) =>
   status === "QUEUED" || status === "RUNNING";
 export const shouldPoll = (
@@ -34,8 +35,12 @@ export default function Simulations() {
   const [expiredPoll, setExpiredPoll] = useState<string>();
   const [offset, setOffset] = useState(0);
   const [traceOffset, setTraceOffset] = useState(0);
+  const [replay, setReplay] = useState<number | null>(null);
   const query = useQueryClient();
   const inspect = useInspector();
+  // Stream events invalidate this run's queries as traces commit; polling stays as a
+  // slower safety net while connected and returns to 2–3 s if the stream drops.
+  const streaming = useStream().status === "CONNECTED";
   const scenarios = useQuery({
     queryKey: ["scenarios"],
     queryFn: ({ signal }) => api.scenarios(signal),
@@ -53,7 +58,9 @@ export default function Simulations() {
       active &&
       !q.state.error &&
       shouldPoll(q.state.data?.status, active.started)
-        ? 2000
+        ? streaming
+          ? 10000
+          : 2000
         : false,
   });
   useEffect(() => {
@@ -80,7 +87,9 @@ export default function Simulations() {
     enabled: !!active,
     refetchInterval: (q) =>
       active && !q.state.error && shouldPoll(run.data?.status, active.started)
-        ? 3000
+        ? streaming
+          ? 10000
+          : 3000
         : false,
   });
   const launch = useMutation({
@@ -88,6 +97,7 @@ export default function Simulations() {
     onSuccess: (r) => {
       setActive({ id: r.run_id, started: Date.now() });
       setTraceOffset(0);
+      setReplay(null);
       query.invalidateQueries();
       toast.success("Simulation queued");
     },
@@ -103,7 +113,20 @@ export default function Simulations() {
   const selectRun = (id: string) => {
     setActive({ id, started: Date.now() });
     setTraceOffset(0);
+    setReplay(null);
   };
+  const total = traces.data?.length || 0;
+  useEffect(() => {
+    if (replay === null) return;
+    if (replay >= total) {
+      setReplay(null);
+      return;
+    }
+    const timer = setTimeout(() => setReplay(replay + 1), 450);
+    return () => clearTimeout(timer);
+  }, [replay, total]);
+  const shown =
+    replay === null ? traces.data || [] : (traces.data || []).slice(0, replay);
   return (
     <>
       <PageTitle
@@ -238,6 +261,24 @@ export default function Simulations() {
                 : "Cancel run"}
             </button>
           )}
+          <Badge tone={streaming ? "success" : "neutral"}>
+            {isActive(run.data?.status)
+              ? streaming
+                ? "Live updates · stream"
+                : "Updates · bounded polling"
+              : "Recorded run"}
+          </Badge>
+          {!isActive(run.data?.status) && total > 0 && (
+            <button
+              onClick={() => setReplay(replay === null ? 0 : null)}
+              aria-pressed={replay !== null}
+            >
+              <History size={13} />
+              {replay === null
+                ? "Replay recorded trace"
+                : `Stop replay (${replay}/${total})`}
+            </button>
+          )}
           {!polling && isActive(run.data?.status) && (
             <button
               onClick={() => setActive({ ...active, started: Date.now() })}
@@ -246,6 +287,12 @@ export default function Simulations() {
             </button>
           )}
         </div>
+      )}
+      {replay !== null && (
+        <Notice>
+          Historical replay of the recorded trace ({replay}/{total} events) —
+          not live execution. Graphs step through persisted events in order.
+        </Notice>
       )}
       {run.error && (
         <ErrorState
@@ -262,7 +309,7 @@ export default function Simulations() {
             key={`${active?.id}-${v}`}
             variant={v}
             result={run.data?.results[v]}
-            traces={traces.data || []}
+            traces={shown}
             loaded={!!traces.data}
           />
         ))}
