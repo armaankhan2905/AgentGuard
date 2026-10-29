@@ -33,6 +33,7 @@ dist/
 build/
 coverage/
 .vite/
+*.tsbuildinfo
 
 # Editor and operating-system files
 .idea/
